@@ -48,6 +48,9 @@ void bumpReset()
 
 int main()
 {
+    /*
+    Code to check if this works as it should (it does).
+
     bumpInit(1024 * 1024);
     int* a = bumpAlloc(sizeof(int));
     int* b = bumpAlloc(sizeof(int) * 10);
@@ -70,7 +73,8 @@ int main()
     
     printf("The addresses of A, B and C are: %p\t%p\t%p\n", A, B, C);
     printf("The values of A, B and C are: %d\t%d\t%c\n", *A, *B, *C);
-
+    
+    */
     return 0;
 }
 
