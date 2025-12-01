@@ -44,6 +44,9 @@ slab_t* slabCreate(size_t objSize)
 
 int main()
 {
+    /*
+    code to check if this works as it should (it does).
+    
     for(size_t i = 0; i < NUM_CLASSES; ++i)
     {
         printf("slab for %zu bytes:\n", sizeClasses[i]);
@@ -58,5 +61,6 @@ int main()
         printf("free list: %p %p %p\n\n", s->freeList, s->freeList + (s->objSize), s->freeList + (2*s->objSize));
     }
 
+    */
     return 0;
 }
