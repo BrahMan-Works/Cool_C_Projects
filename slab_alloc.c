@@ -46,6 +46,7 @@ slab_t* slabCreate(size_t objSize)
     s->used = 0;
 
     char* objStart = (char*)s + sizeof(slab_t);
+
     char*p = objStart;
 
     for(size_t i = 0; i < s->capacity - 1; ++i)
@@ -104,8 +105,14 @@ int slabFree(void* ptr, size_t size)
         return -1;
     }
 
+    slab_t* prev = NULL;
     slab_t* s = slabList[cI];
-    while(s && !ptrInSlab(s, ptr)) s = s->next;
+
+    while(s && !ptrInSlab(s, ptr))
+    {
+        prev = s;
+        s = s->next;
+    }
 
     if(!s)
     {
@@ -116,6 +123,15 @@ int slabFree(void* ptr, size_t size)
     *(void**) ptr = s->freeList;
     s->freeList = ptr;
     s->used--;
+
+    if(s->used == 0)
+    {
+        if(prev) prev->next = s->next;
+        else slabList[cI] = s->next;
+
+        munmap(s, 4096);
+        // printf("Returned slab %p for size class %zu\n", s, sizeClasses[cI]);
+    }
     
     return 0;
 }
@@ -125,19 +141,13 @@ int main()
     /*
     code to check if this works as it should (it does).
 
-    void* a1 = slabAlloc(20);
-    void* a2 = slabAlloc(20);
-    void* a3 = slabAlloc(20);
-
-    printf("a1 = %p\n", a1);
-    printf("a2 = %p\n", a2);
-    printf("a3 = %p\n", a3);
-
-    slabFree(a2, 20);
-
-    void* a4 = slabAlloc(20);
+    void* arr[200];
     
-    printf("a4 = %p\n", a4);
+    for(int i = 0; i < 200; ++i) arr[i] = slabAlloc(20);
+    for(int i = 0; i < 200; ++i) slabFree(arr[i], 20);
+
+    void* p = slabAlloc(20);
+    printf("new allocation = %p\n", p);
     
     */
     return 0;
