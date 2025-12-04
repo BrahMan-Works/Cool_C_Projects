@@ -15,6 +15,11 @@ typedef struct slab
     void* freeList;
 } slab_t;
 
+typedef struct large_header
+{
+    size_t size;
+} large_header_t;
+
 static slab_t* slabList[5] = {0};
 
 static int
@@ -94,6 +99,24 @@ void* slabAlloc(size_t size)
     return obj;
 }
 
+void* largeAlloc(size_t size)
+{
+    size_t total = sizeof(large_header_t) + size;
+    size_t pages = (total + 4095) & ~4095;
+
+    large_header_t* h = mmap(NULL, pages, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+    if(h == MAP_FAILED)
+    {
+        perror("largeAlloc()");
+        return NULL;
+    }
+
+    h->size = pages;
+
+    return (void*)(h + sizeof(large_header_t));
+}
+
 int slabFree(void* ptr, size_t size)
 {
     if(!ptr) return -1;
@@ -130,24 +153,45 @@ int slabFree(void* ptr, size_t size)
         else slabList[cI] = s->next;
 
         munmap(s, 4096);
-        // printf("Returned slab %p for size class %zu\n", s, sizeClasses[cI]);
     }
     
     return 0;
 }
 
+int largeFree(void* ptr, size_t size)
+{
+    if(!ptr)
+    {
+        perror("largeFree()");
+        return -1;
+    }
+
+    large_header_t* h = (large_header_t*)ptr - sizeof(large_header_t);
+    munmap(h, h->size);
+    return 0;
+}
+
+void* myAlloc(size_t size)
+{
+    if(size > 256) return largeAlloc(size);
+    return slabAlloc(size);
+}
+
+int myFree(void* ptr, size_t size)
+{
+    if(size > 256) return largeFree(ptr, size);
+    return slabFree(ptr, size);
+}
+
 int main()
 {
     /*
-    code to check if this works as it should (it does).
+    code to check if this works as it should (it does).   
 
-    void* arr[200];
-    
-    for(int i = 0; i < 200; ++i) arr[i] = slabAlloc(20);
-    for(int i = 0; i < 200; ++i) slabFree(arr[i], 20);
+    void* p = myAlloc(8000);
+    printf("allocated large page at %p\n", p);
 
-    void* p = slabAlloc(20);
-    printf("new allocation = %p\n", p);
+    myFree(p, 8000);
     
     */
     return 0;
