@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <sys/mman.h>
 #include <stddef.h>
+#include <pthread.h>
 
 static const size_t sizeClasses[] = {16, 32, 64, 128, 256};
 static const size_t NUM_CLASSES = 5;
@@ -20,7 +21,7 @@ typedef struct large_header
     size_t size;
 } large_header_t;
 
-static slab_t* slabList[5] = {0};
+__thread slab_t* threadSlabList[5] = {0};
 
 static int
 getClassIndex(size_t size)
@@ -63,6 +64,7 @@ slab_t* slabCreate(size_t objSize)
     *(void**)p = NULL;
 
     s->freeList = objStart;
+    // printf("thread %lu created new slab %p\n", pthread_self(), s);
 
     return s;
 }
@@ -76,7 +78,7 @@ void* slabAlloc(size_t size)
         return NULL;
     }
 
-    slab_t* s = slabList[cI];
+    slab_t* s = threadSlabList[cI];
 
     while(s && s->freeList == NULL) s = s->next;
 
@@ -88,8 +90,8 @@ void* slabAlloc(size_t size)
             printf("slab creation falied\n");
             return NULL;
         }
-        s->next = slabList[cI];
-        slabList[cI] = s;
+        s->next = threadSlabList[cI];
+        threadSlabList[cI] = s;
     }
 
     void* obj = s->freeList;
@@ -129,7 +131,7 @@ int slabFree(void* ptr, size_t size)
     }
 
     slab_t* prev = NULL;
-    slab_t* s = slabList[cI];
+    slab_t* s = threadSlabList[cI];
 
     while(s && !ptrInSlab(s, ptr))
     {
@@ -150,7 +152,7 @@ int slabFree(void* ptr, size_t size)
     if(s->used == 0)
     {
         if(prev) prev->next = s->next;
-        else slabList[cI] = s->next;
+        else threadSlabList[cI] = s->next;
 
         munmap(s, 4096);
     }
@@ -183,16 +185,36 @@ int myFree(void* ptr, size_t size)
     return slabFree(ptr, size);
 }
 
+/*
+void* worker(void* arg)
+{
+    for(int i = 0; i < 100000; ++i)
+    {
+        void* p = myAlloc(20);
+        slabFree(p, 20);
+    }
+
+    return NULL;
+}
+*/
+
 int main()
 {
     /*
-    code to check if this works as it should (it does).   
+    code to check if this works as it should (it does).  
 
-    void* p = myAlloc(8000);
-    printf("allocated large page at %p\n", p);
+    pthread_t threads[4];
 
-    myFree(p, 8000);
-    
+    for(int i = 0; i < 4; ++i)
+    {
+        pthread_create(&threads[i], NULL, worker, NULL);
+    }
+
+    for(int i = 0; i < 4; ++i)
+    {
+        pthread_join(threads[i], NULL);
+    }
+
     */
     return 0;
 }
